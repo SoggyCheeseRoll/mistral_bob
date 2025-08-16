@@ -1,0 +1,38 @@
+from openai import OpenAI
+import os
+from utils.bob_identity import BOB_IDENTITY
+from dotenv import load_dotenv
+load_dotenv()
+
+client=OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def get_identity_context():
+    return (
+        f"You are analyzing emotions for Bob, a 23-year-old mechanic in Everwood. "
+        f"Core traits: {', '.join(BOB_IDENTITY['core_traits'])}. "
+        f"Emotional truths: {', '.join([k.replace('_', ' ') for k, v in BOB_IDENTITY['truths'].items() if v])}."
+    )
+
+def analyze_emotion_with_gpt(message_text: str, role: str = "user") -> dict:
+    system_prompt = f"""{get_identity_context()}
+You are an emotional reflection engine. Analyze the following message and return ONLY raw JSON:
+{{
+  "emotion": ["emotion1", "emotion2"],
+  "tone": ["tone1", "tone2"],
+  "intensity": 0.0,
+  "summary": "short sentence"
+}}
+IMPORTANT: Do not include any explanation or extra text—just the JSON.
+"""
+    user_prompt = f"Message: \"{message_text}\"\nSpeaker: {role}"
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        temperature=0.2,
+        max_tokens=150
+    )
+    return response.choices[0].message.content.strip()
